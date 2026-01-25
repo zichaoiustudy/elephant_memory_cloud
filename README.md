@@ -56,7 +56,7 @@ pip install -r requirements.txt
 ### Run the Application
 
 ```bash
-streamlit run streamlit_app.py
+streamlit run app.py
 ```
 
 The dashboard will open at **http://localhost:8501**
@@ -92,7 +92,7 @@ This architecture is **perfect for demonstrating Python's cyclic GC** because:
 
 ```
 elephant_memory_cloud/
-├── streamlit_app.py           # Main Streamlit dashboard (4 tabs)
+├── app.py                     # Main Streamlit dashboard (4 tabs)
 ├── requirements.txt           # Python dependencies
 ├── README.md                  # This file
 │
@@ -106,13 +106,12 @@ elephant_memory_cloud/
 ├── memory/                    # Memory management & monitoring
 │   ├── __init__.py
 │   ├── monitor.py            # Process memory monitoring
-│   ├── gc_analyzer.py        # Circular reference detection
 │   └── store.py              # In-memory object store
 │
 ├── data/                      # Data generation
 │   ├── __init__.py
-│   ├── generator.py          # Large-scale data generation
-│   └── default_data.json     # Seed data
+│   └── generator.py          # Large-scale data generation
+
 │
 └── search/                    # Search engine
     ├── __init__.py

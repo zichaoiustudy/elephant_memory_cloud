@@ -6,11 +6,10 @@ Real-time memory monitoring, large-scale data generation, and efficient search.
 
 import streamlit as st
 import gc
-from datetime import datetime
 from collections import Counter
 from models import Elephant, Herd, Event, WaterSource
 from models.event import EventType
-from memory import MemoryMonitor, GarbageCollectionAnalyzer
+from memory import MemoryMonitor
 from memory.store import get_store
 from data.generator import DataGenerator
 from search.engine import ElephantSearchEngine
@@ -25,7 +24,6 @@ st.set_page_config(
 # Initialize session state
 if 'monitor' not in st.session_state:
     st.session_state.monitor = MemoryMonitor()
-    st.session_state.analyzer = GarbageCollectionAnalyzer()
     st.session_state.store = get_store()
     st.session_state.search_engine = ElephantSearchEngine()
     st.session_state.large_dataset_generated = False
