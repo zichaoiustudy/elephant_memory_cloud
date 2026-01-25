@@ -175,9 +175,17 @@ with tab2:
         with col_c:
             num_events = st.number_input("Number of Events", min_value=100, max_value=10000, value=1000, step=100)
         
-        # Estimate stats
-        estimated_elephants = num_families * (children_per_elephant ** generations)
-        st.info(f"📊 Estimated: ~{estimated_elephants:,} elephants, {num_events:,} events, {num_herds} herds")
+        # Estimate stats - Note: Due to stochastic generation, actual count will vary significantly
+        # Theoretical maximum if every elephant had the average (3.0) children:
+        avg_children = (2 + children_per_elephant + 1) / 2
+        if avg_children > 1:
+            max_estimate = int(num_families * (avg_children ** (generations + 1) - 1) / (avg_children - 1))
+            # Empirically, random generation produces ~33% of theoretical maximum
+            typical_estimate = int(max_estimate * 0.33)
+            st.info(f"📊 Estimated: ~{typical_estimate:,} elephants (range: {int(typical_estimate*0.6):,}-{int(typical_estimate*1.3):,}), {num_events:,} events, {num_herds} herds")
+        else:
+            estimated_elephants = num_families * (generations + 1)
+            st.info(f"📊 Estimated: ~{estimated_elephants:,} elephants, {num_events:,} events, {num_herds} herds")
         
         if st.button("🚀 Generate Large Dataset", type="primary", use_container_width=True):
             # Clear existing data
