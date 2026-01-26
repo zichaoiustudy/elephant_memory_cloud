@@ -27,6 +27,7 @@ if 'monitor' not in st.session_state:
     st.session_state.store = get_store()
     st.session_state.search_engine = ElephantSearchEngine()
     st.session_state.large_dataset_generated = False
+    st.session_state.references_broken = False  # Track if we've broken references
 
 # Header
 st.title("🐘 Elephant Memory Cloud")
@@ -38,7 +39,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "🏠 Dashboard", 
     "🗄️ Data Generation", 
     "🔍 Search Engine",
-    "📊 Analytics"
+    "🌳 Genealogy"
 ])
 
 # ============================================================================
@@ -75,34 +76,82 @@ with tab1:
 
     st.divider()
     
-    # Quick actions
-    col_btn1, col_btn2 = st.columns(2)
+    # Two-step GC demonstration
+    st.subheader("🎯 Circular Reference Demonstration")
+    
+    # Show current state with clear metrics
+    if st.session_state.references_broken:
+        # After breaking references - show the orphaned state
+        st.error("⚠️ **ORPHANED STATE - References Broken!**")
+        
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.metric("📦 Elephants in Store", "0", delta="Cleared", delta_color="off")
+        with col_b:
+            orphaned_count = Elephant.get_instance_count()
+            st.metric("👻 Orphaned in Memory", f"{orphaned_count:,}", delta="Still alive!", delta_color="inverse")
+        with col_c:
+            st.metric("♻️ GC Status", "Pending", delta="Not run yet", delta_color="off")
+        
+        st.warning("💡 **This proves circular references prevent Python's reference counting from working!**")
+        st.info("👉 Click 'Run GC' to finally free them →")
+    elif st.session_state.large_dataset_generated:
+        # Before breaking references - show the active state
+        st.success("✅ **ACTIVE STATE - Data in Memory**")
+        
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            active_count = store_stats['total_elephants']
+            st.metric("📦 Elephants in Store", f"{active_count:,}", delta="Reachable")
+        with col_b:
+            memory_count = Elephant.get_instance_count()
+            st.metric("💾 In Memory", f"{memory_count:,}", delta="Active")
+        with col_c:
+            st.metric("🔗 Circular Refs", f"{store_stats['circular_references']:,}", delta="Parent↔Child")
+        
+        st.info("👉 Click 'Break References' to remove from store (but watch them stay in memory!) →")
+    
+    # Buttons
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
     
     with col_btn1:
-        if st.button("🗑️ Clear All Data & Run GC", 
-                     disabled=not st.session_state.large_dataset_generated,
+        if st.button("💔 Break References", 
+                     disabled=not st.session_state.large_dataset_generated or st.session_state.references_broken,
                      use_container_width=True,
-                     type="primary"):
-            snapshot_before = st.session_state.monitor.take_snapshot("Before cleanup")
-            count_before = Elephant.get_instance_count()
-            
-            # Clear store
+                     type="secondary"):
+            # Clear store - makes elephants unreachable but doesn't collect them yet
             st.session_state.store.clear()
             st.session_state.large_dataset_generated = False
-            
-            # Force GC
-            collected = gc.collect()
-            
-            snapshot_after = st.session_state.monitor.take_snapshot("After cleanup")
-            count_after = Elephant.get_instance_count()
-            
-            st.success("🧹 Cleanup complete!")
-            st.info(f"📊 Elephants: {count_before:,} → {count_after:,}")
-            st.info(f"🗑️ Objects collected: {collected:,}")
-            st.info(f"💾 Memory freed: {snapshot_before['process_memory_mb'] - snapshot_after['process_memory_mb']:.2f} MB")
+            st.session_state.references_broken = True
             st.rerun()
     
     with col_btn2:
+        if st.button("♻️ Run GC", 
+                     disabled=not st.session_state.references_broken,
+                     use_container_width=True,
+                     type="primary"):
+            # Take snapshot before GC
+            count_before = Elephant.get_instance_count()
+            memory_before = st.session_state.monitor.get_process_memory_mb()
+            
+            # Force GC - now it can collect the orphaned cycles
+            collected = gc.collect()
+            
+            # Take snapshot after GC
+            count_after = Elephant.get_instance_count()
+            memory_after = st.session_state.monitor.get_process_memory_mb()
+            
+            st.session_state.references_broken = False
+            
+            st.success("✅ **Garbage Collection Complete!**")
+            st.metric("🐘 Elephants Freed", f"{count_before - count_after:,}")
+            st.metric("🗑️ Total Objects Collected", f"{collected:,}")
+            st.metric("💾 Memory Freed", f"{memory_before - memory_after:.2f} MB")
+            st.balloons()
+            st.success("🎯 **Cyclic GC successfully cleaned up circular references that reference counting couldn't handle!**")
+            st.rerun()
+    
+    with col_btn3:
         if st.button("🔄 Refresh Statistics", use_container_width=True):
             st.rerun()
     
@@ -343,10 +392,10 @@ with tab3:
                 for event_type, count in type_counts.most_common():
                     st.markdown(f"- **{event_type}**: {count} events")
                 
-                # Show first 5
+                # Show all events
                 if events:
-                    with st.expander(f"Show first 5 events"):
-                        for event in events[:5]:
+                    with st.expander(f"Show all {len(events)} events"):
+                        for event in events:
                             st.markdown(f"**{event.event_type.value}** at {event.location}")
         
         elif search_type == "🐘 Elephant Timeline":
@@ -407,60 +456,192 @@ with tab3:
                 st.metric("Event Types", stats['event_types'])
 
 # ============================================================================
-# TAB 4: Analytics
+# TAB 4: Elephant Genealogy & Relationships
 # ============================================================================
 with tab4:
-    st.header("📊 Memory & Performance Analytics")
+    st.header("🌳 Elephant Genealogy & Family Relationships")
     
-    if st.session_state.large_dataset_generated:
-        col1, col2 = st.columns(2)
+    if not st.session_state.large_dataset_generated or len(st.session_state.store.elephants) == 0:
+        st.info("🐘 Generate a dataset first to explore elephant families and relationships")
+    else:
+        elephants = st.session_state.store.elephants
+        
+        # Calculate family statistics
+        families = {}
+        generations = {}
+        orphans = []
+        max_depth = 0
+        
+        for elephant in elephants:
+            # Find root ancestor
+            root = elephant
+            depth = 0
+            while root.parent and depth < 100:  # Prevent infinite loops
+                root = root.parent
+                depth += 1
+            
+            max_depth = max(max_depth, depth)
+            
+            if root.name not in families:
+                families[root.name] = []
+            families[root.name].append(elephant)
+            
+            # Track generation depth
+            generations[elephant.name] = depth
+            
+            # Find orphans (no parent, but not a root with children)
+            if not elephant.parent and len(elephant.children) == 0:
+                orphans.append(elephant)
+        
+        # Overview metrics
+        st.subheader("📊 Family Overview")
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.subheader("Memory Impact")
-            
-            stats = st.session_state.store.get_stats()
-            memory_mb = st.session_state.monitor.get_process_memory_mb()
-            
-            st.metric("Current Memory", f"{memory_mb:.2f} MB")
-            st.metric("Total Objects", f"{len(gc.get_objects()):,}")
-            st.metric("Circular References", f"{stats['circular_references']:,}")
-            
-            # Calculate memory per elephant
-            if stats['total_elephants'] > 0:
-                memory_per_elephant = (memory_mb / stats['total_elephants']) * 1024  # KB
-                st.metric("Memory per Elephant", f"{memory_per_elephant:.2f} KB")
-        
+            st.metric("🌳 Total Families", len(families))
         with col2:
-            st.subheader("GC Statistics")
-            
-            gc_count = gc.get_count()
-            st.metric("GC Generation 0", gc_count[0])
-            st.metric("GC Generation 1", gc_count[1])
-            st.metric("GC Generation 2", gc_count[2])
-            
-            if st.button("🧹 Force Garbage Collection"):
-                collected = gc.collect()
-                st.success(f"Collected {collected} objects")
-                st.rerun()
+            avg_family_size = len(elephants) / len(families) if families else 0
+            st.metric("👥 Avg Family Size", f"{avg_family_size:.1f}")
+        with col3:
+            st.metric("🔢 Max Generation Depth", max_depth)
+        with col4:
+            st.metric("🍃 Orphans", len(orphans))
         
         st.divider()
         
-        st.subheader("Dataset Overview")
-        overview_data = {
-            "Category": ["Elephants", "Herds", "Events", "Water Sources", "Circular Refs"],
-            "Count": [
-                stats['total_elephants'],
-                stats['total_herds'],
-                stats['total_events'],
-                stats['total_water_sources'],
-                stats['circular_references']
-            ]
-        }
-        st.bar_chart(overview_data, x="Category", y="Count")
-    
-    else:
-        st.info("📊 Generate a large dataset first to see analytics")
+        # Family Tree Browser
+        st.subheader("🌳 Family Tree Explorer")
+        
+        col_left, col_right = st.columns([2, 1])
+        
+        with col_left:
+            # Sort families by size
+            sorted_families = sorted(families.items(), key=lambda x: len(x[1]), reverse=True)
+            family_options = [f"{root} ({len(members)} elephants)" for root, members in sorted_families]
+            
+            if family_options:
+                selected_family = st.selectbox("Select a Family", family_options)
+                selected_root = selected_family.split(" (")[0]
+                
+                # Get the family
+                family_members = families[selected_root]
+                root_elephant = next(e for e in family_members if e.name == selected_root)
+                
+                # Display family tree recursively
+                st.markdown("### 🌳 Family Tree")
+                
+                def display_tree(elephant, indent=0, prefix=""):
+                    """Recursively display family tree"""
+                    # Create visual tree structure
+                    icon = "🌳" if indent == 0 else "🐘"
+                    circle_icon = "🔗" if elephant.parent else "👑"
+                    
+                    tree_line = "    " * indent + prefix
+                    st.markdown(f"{tree_line}{icon} **{elephant.name}** {circle_icon}")
+                    
+                    # Show details
+                    details = f"{tree_line}   ↳ Born: {elephant.birth_year}, Children: {len(elephant.children)}"
+                    if elephant.parent:
+                        details += f", Parent: {elephant.parent.name}"
+                    st.caption(details)
+                    
+                    # Display children
+                    for i, child in enumerate(elephant.children):
+                        is_last = i == len(elephant.children) - 1
+                        child_prefix = "└─ " if is_last else "├─ "
+                        display_tree(child, indent + 1, child_prefix)
+                
+                with st.container():
+                    display_tree(root_elephant)
+                
+                # Circular reference visualization
+                st.markdown("### 🔄 Circular References in This Family")
+                circular_refs = sum(1 for e in family_members if e.parent)
+                st.info(f"This family has **{circular_refs}** parent↔child circular references")
+                
+                # Show some examples
+                with st.expander("View Reference Examples"):
+                    for elephant in family_members[:10]:
+                        if elephant.parent:
+                            st.markdown(f"- `{elephant.name}` ↔ `{elephant.parent.name}` (child ↔ parent)")
+        
+        with col_right:
+            st.markdown("### 📊 Family Statistics")
+            
+            # Generation distribution
+            gen_counts = Counter(generations.values())
+            st.markdown("**Generation Distribution:**")
+            for gen in sorted(gen_counts.keys()):
+                st.metric(f"Generation {gen}", gen_counts[gen])
+            
+            st.divider()
+            
+            # Largest families
+            st.markdown("**Largest Families:**")
+            for i, (root, members) in enumerate(sorted_families[:5]):
+                st.caption(f"{i+1}. {root}: {len(members)} elephants")
+        
+        st.divider()
+        
+        # Relationship Analysis
+        st.subheader("🔍 Relationship Analysis")
+        
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            st.markdown("### 👨‍👩‍👧‍👦 Children Distribution")
+            
+            children_dist = Counter(len(e.children) for e in elephants)
+            dist_data = {
+                "Children Count": list(children_dist.keys()),
+                "Elephants": list(children_dist.values())
+            }
+            st.bar_chart(dist_data, x="Children Count", y="Elephants")
+            
+            # Stats
+            avg_children = sum(len(e.children) for e in elephants) / len(elephants)
+            max_children = max(len(e.children) for e in elephants)
+            st.metric("Average Children", f"{avg_children:.2f}")
+            st.metric("Max Children", max_children)
+            
+            # Find the most prolific parent
+            most_children = max(elephants, key=lambda e: len(e.children))
+            if len(most_children.children) > 0:
+                st.success(f"🏆 Most children: **{most_children.name}** with {len(most_children.children)} children")
+        
+        with col_b:
+            st.markdown("### 📅 Age Distribution")
+            
+            # Birth year distribution
+            birth_years = Counter(e.birth_year for e in elephants)
+            year_data = {
+                "Birth Year": sorted(birth_years.keys()),
+                "Elephants Born": [birth_years[y] for y in sorted(birth_years.keys())]
+            }
+            st.line_chart(year_data, x="Birth Year", y="Elephants Born")
+            
+            # Age stats
+            current_year = 2026
+            ages = [current_year - e.birth_year for e in elephants]
+            avg_age = sum(ages) / len(ages)
+            oldest = max(elephants, key=lambda e: current_year - e.birth_year)
+            youngest = min(elephants, key=lambda e: current_year - e.birth_year)
+            
+            st.metric("Average Age", f"{avg_age:.1f} years")
+            st.success(f"🧓 Oldest: **{oldest.name}** ({current_year - oldest.birth_year} years)")
+            st.info(f"🍼 Youngest: **{youngest.name}** ({current_year - youngest.birth_year} years)")
+        
+        # Orphan detection
+        if orphans:
+            st.divider()
+            st.subheader("🍃 Orphaned Elephants")
+            st.warning(f"Found {len(orphans)} orphaned elephants (no parents, no children)")
+            
+            with st.expander("View Orphans"):
+                for orphan in orphans[:20]:
+                    st.caption(f"🐘 {orphan.name} (Born: {orphan.birth_year})")
 
 # Footer
 st.divider()
 st.caption("🐘 Elephant Memory Cloud - Demonstrating Python's Cyclic Garbage Collection at Scale")
+
