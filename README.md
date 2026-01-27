@@ -35,12 +35,11 @@ This project visualizes how Python's cyclic garbage collector handles circular r
 
 ### 🌳 Genealogy
 - **Family Overview**: Total families, average size, generation depth, circular references, orphans
-- **Interactive Family Tree**: Hierarchical visualization using NetworkX and Plotly
+- **Interactive Family Tree**: Hierarchical visualization using Plotly
   - Color-coded by generation
   - Hover for details (name, birth year, children count)
   - Automatic layout positioning
 - **Relationship Analysis**:
-  - Children distribution chart (0 children = red, others = blue)
   - Age distribution over time (area chart)
   - Oldest and youngest elephants
   - Average children and average age metrics
@@ -99,11 +98,6 @@ This architecture **demonstrates Python's cyclic GC** because:
 - **Plotly**: Interactive charts (pie, bar, area, network graphs)
 - **psutil**: Process memory monitoring
 
-### Family Tree Implementation
-- **Native Python dictionaries**: Graph structure (nodes & edges)
-- **Custom hierarchical layout**: Automatic positioning by generation
-- **Plotly visualization**: Interactive tree with hover details
-
 ### Search Performance
 - **Dictionary-based indexes** for O(1) lookups
 - Year index: `{2020: [event1, event2, ...]}`
@@ -140,7 +134,7 @@ elephant_memory_cloud/
     └── engine.py             # Indexed search with O(1) lookups
 ```
 
-## 🔬 Scientific Focus (Topic 1)
+## 🔬 Scientific Focus
 
 ### Memory Management: Cyclic Garbage Collection
 
@@ -167,14 +161,6 @@ This project demonstrates:
    - Clear references → force GC → observe memory decrease
    - Prove cyclic GC successfully frees circular references
 
-### Key Metrics
-
-When you generate a dataset with **5 families × 5 generations**:
-- ~**1,200+ elephants** created
-- ~**2,400+ circular references** (parent-child bidirectional)
-- ~**+50-100 MB** memory usage
-- Cleanup frees **~95% of memory** (proving GC works!)
-
 ## 🎓 Educational Value
 
 This project teaches:
@@ -183,19 +169,6 @@ This project teaches:
 - **Scalability**: Generating and managing large datasets
 - **Performance**: Monitoring memory and GC overhead
 - **Architecture**: When to use in-memory vs database storage
-
-## 📝 Technical Notes
-
-### Memory Considerations
-- **Recommended**: 5-10 families with 4-6 generations (~1K-5K elephants)
-- **Maximum**: 20 families with 10 generations (~50K+ elephants, requires 16GB+ RAM)
-- Each elephant uses approximately 50-100KB including circular references
-
-### Search Performance
-- Year search: O(1) - direct dictionary lookup
-- Elephant search: O(1) - indexed by name
-- Location search: O(k) where k = nearby grid cells
-- Event type search: O(1) - indexed by type
 
 ## 📄 License
 
